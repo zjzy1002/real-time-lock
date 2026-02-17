@@ -5,7 +5,6 @@ export interface LockInfo {
     startTime: number; 
   }
   
-
   export type LockStatusUpdate = LockInfo | null; // null means the ad is free!
   
   export interface ServerToClientEvents {

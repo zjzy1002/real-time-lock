@@ -40,8 +40,12 @@ Open a third termial window/tab and go to the client folder
 ```bash
 cd client
 npm install
-npm start
+npm install socket.io-client
+npm run dev
 ```
+
+### 4. Test the Socket connection
+Go to http://localhost:5173/, you should see the connection status.
 
 ### 4. Stop the app
 Press Ctrl + C to stop the service

@@ -1,22 +1,37 @@
-import { Server } from "socket.io";
-import Redis from "ioredis";
+import express = require('express');
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 
-// Connect to the Redis
-const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
+const app = express();
+const httpServer = createServer(app);
 
-// 2. Start the Socket.io
-const io = new Server(4000, {
-  cors: { origin: "*" } 
+// Initialize Socket.io
+const io = new Server(httpServer, {
+  cors: {
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"]
+  }
 });
 
-console.log("Librarian is awake on port 4000...");
-
 io.on("connection", (socket) => {
-  console.log("A user just connected:", socket.id);
+  console.log(`📡 User connected: ${socket.id}`);
 
-  // We will add the 'request-lock' logic here next!
-  
-  socket.on("disconnect", () => {
-    console.log("User left the building.");
+  // Listen for the test signal
+  socket.on("test-message", (data) => {
+    console.log(`Received from client: ${data.text}`);
+    
+    // Send it back to EVERYONE (including the sender)
+    io.emit("broadcast-test", {
+      message: `Server received: ${data.text}`,
+      time: new Date().toLocaleTimeString()
+    });
   });
+
+  socket.on("disconnect", () => {
+    console.log("🔌 User disconnected");
+  });
+});
+
+httpServer.listen(4000, () => {
+  console.log("Socket server running on http://localhost:4000");
 });
