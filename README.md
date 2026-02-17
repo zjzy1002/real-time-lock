@@ -28,7 +28,7 @@ docker-compose up --build
 Look for message: " Librarian is awake on port 4000". If you see the message, the bridge is open.
 
 ### 2. Start the backend
-Open a SECOND termial window/tab and go to the server folder
+Open a second termial window/tab and go to the server folder
 ```bash
 cd server
 npm install
@@ -36,7 +36,7 @@ npm run dev
 ```
 
 ### 3. Start the frontend
-Open a SECOND termial window/tab and go to the client folder
+Open a third termial window/tab and go to the client folder
 ```bash
 cd client
 npm install
@@ -46,4 +46,4 @@ npm start
 ### 4. Stop the app
 Press Ctrl + C to stop the service
 or 
-Run ```bash docker-compose down ``` to fully clean up
+Run `docker-compose down` to fully clean up
