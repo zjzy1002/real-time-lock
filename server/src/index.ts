@@ -21,19 +21,25 @@ const redis = new Redis({
   port: 6379
 });
 
+const LOCK_TTL = 5;
+
+
+
 io.on("connection", (socket) => {
   console.log(`User connected: ${socket.id}`);
+
+
 
   socket.on("request-lock", async ({ adId, userId }) => {
     const lockKey = `lock:ad:${adId}`;
     
     // SET with NX (Not Exists) and EX (Expires set in 60 seconds. For showcase, set 10000ms = 10 seconds)
     // This is "Atomic": only one user can successfully SET this at a time.
-    const result = await redis.set(lockKey, userId, "PX", 10000, "NX");
+    const result = await redis.set(lockKey, userId, "EX", LOCK_TTL, "NX");
 
     if (result === "OK") {
       // SUCCESS: Tell EVERYONE the ad is now locked
-      io.emit("lock-update", { adId, lockedBy: userId, isLocked: true });
+      io.emit("lock-update", { adId, lockedBy: userId, isLocked: true, expiredIn: LOCK_TTL });
       console.log(`${userId} locked ${adId}`);
     } else {
       // FAIL: Tell ONLY the person who tried that it's taken
