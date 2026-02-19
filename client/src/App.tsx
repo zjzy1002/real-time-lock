@@ -29,11 +29,13 @@ function App() {
       console.log("Received data from server:", data);
       setLockInfo({ isLocked: data.isLocked, lockedBy: data.lockedBy });
 
-      if (data.isLocked && data.expiredIn) {
+      if (data.isLocked) {
         setTimeLeft(data.expiredIn);
         setIsExpired(false);
       } else {
+        //Ensures the UI stays Green
         setTimeLeft(0);
+        setIsExpired(false);
       }
     };
 
@@ -74,6 +76,7 @@ function App() {
           if (prev <= 1) {
             clearInterval(timer);
             setIsExpired(true); // trigger the prompt
+            socket.emit("release-lock", { adId: "car-123", userId: socket.id});
             return 0;
           }
           return prev - 1;
@@ -126,8 +129,12 @@ function App() {
             <p>Your editing time has run out and the lock has been released.</p>
             <button 
               onClick={() => {
+                console.log("Button clicked: clean up session")
                 setIsExpired(false);
-                handleRequestLock();
+                socket.emit("release-lock", {adId: "car-123", userId: socket.id});
+                // setLockInfo({ isLocked: false, lockedBy: null });
+                // setTimeLeft(0);
+                // handleRequestLock();
               }}
               style={{ 
                 padding: '12px 24px', 

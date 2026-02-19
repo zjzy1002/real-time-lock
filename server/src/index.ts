@@ -84,16 +84,18 @@ io.on("connection", (socket) => {
 
   socket.on("release-lock", async ({ adId, userId }) => {
     const lockKey = `lock:ad:${adId}`;
-    const currentOwner = await redis.get(lockKey);
-
-    // Safety check: Only the person who OWNS the lock can delete it
-    if (currentOwner === userId) {
-      await redis.del(lockKey);
-      // Tell everyone the ad is free again
-      io.emit("lock-update", { adId, lockedBy: null, isLocked: false });
-      console.log(`${userId} released ${adId}`);
-    }
-  });
+    
+    //Force delete from Redis (don't check owner, just kill it)
+    await redis.del(lockKey);
+    
+    //Tell EVERYONE the lock is dead
+    io.emit("lock-update", { 
+      adId, 
+      lockedBy: null, 
+      isLocked: false, 
+      expiresIn: 0 
+    });
+  })
 
   socket.on("disconnect", () => {
     console.log(`User disconnected: ${socket.id}`);
