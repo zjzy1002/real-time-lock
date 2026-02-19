@@ -1,9 +1,11 @@
 import express = require('express');
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import { Redis } from 'ioredis';
 
 const app = express();
 const httpServer = createServer(app);
+
 
 // Initialize Socket.io
 const io = new Server(httpServer, {
@@ -13,22 +15,47 @@ const io = new Server(httpServer, {
   }
 });
 
-io.on("connection", (socket) => {
-  console.log(`📡 User connected: ${socket.id}`);
+//initialize Redis Connection
+const redis = new Redis({
+  host: 'localhost',
+  port: 6379
+});
 
-  // Listen for the test signal
-  socket.on("test-message", (data) => {
-    console.log(`Received from client: ${data.text}`);
+io.on("connection", (socket) => {
+  console.log(`User connected: ${socket.id}`);
+
+  socket.on("request-lock", async ({ adId, userId }) => {
+    const lockKey = `lock:ad:${adId}`;
     
-    // Send it back to EVERYONE (including the sender)
-    io.emit("broadcast-test", {
-      message: `Server received: ${data.text}`,
-      time: new Date().toLocaleTimeString()
-    });
+    // SET with NX (Not Exists) and EX (Expires set in 60 seconds. For showcase, set 10000ms = 10 seconds)
+    // This is "Atomic": only one user can successfully SET this at a time.
+    const result = await redis.set(lockKey, userId, "PX", 10000, "NX");
+
+    if (result === "OK") {
+      // SUCCESS: Tell EVERYONE the ad is now locked
+      io.emit("lock-update", { adId, lockedBy: userId, isLocked: true });
+      console.log(`${userId} locked ${adId}`);
+    } else {
+      // FAIL: Tell ONLY the person who tried that it's taken
+      socket.emit("lock-error", { message: "Access Denied: Someone is already editing." });
+    }
+  });
+
+  socket.on("release-lock", async ({ adId, userId }) => {
+    const lockKey = `lock:ad:${adId}`;
+    const currentOwner = await redis.get(lockKey);
+
+    // Safety check: Only the person who OWNS the lock can delete it
+    if (currentOwner === userId) {
+      await redis.del(lockKey);
+      // Tell everyone the ad is free again
+      io.emit("lock-update", { adId, lockedBy: null, isLocked: false });
+      console.log(`${userId} released ${adId}`);
+    }
   });
 
   socket.on("disconnect", () => {
-    console.log("🔌 User disconnected");
+    console.log(`User disconnected: ${socket.id}`);
   });
 });
 
