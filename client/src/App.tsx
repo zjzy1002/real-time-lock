@@ -60,37 +60,30 @@ function App() {
 
     //The timer ticker
     useEffect(() => {
-      //If timeLeft hits 0, stop everything
-      if (timeLeft <= 0) {
-        console.log("Timer reached 0 or is inactive.");
-        return;
-      }
+      if (timeLeft <= 0) return;
     
-      console.log("Timer started/resumed at:", timeLeft);
-    
-      //Set up the interval
       const timer = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
+        setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
       }, 1000);
     
-      //If the user clicks "Release" or if the component re-renders
-      return () => {
-        console.log("Cleaning up timer...");
-        clearInterval(timer);
-      };
-    }, [timeLeft]); // <--- This ensures the effect sees the NEW time every second
+      // This cleanup is what allows the "Jump" to happen.
+      // When setTimeLeft(18) is called, this effect kills the old 
+      // 8s timer and starts a fresh one from 18s.
+      return () => clearInterval(timer);
+    }, [timeLeft]);
   
     const handleRequestLock = () => {
       // We send the ID of the ad we want to lock and our own ID
       socket.emit("request-lock", { 
         adId: "car-123", 
         userId: myUserId 
+      });
+    };
+
+    const handleRenewLock = () => {
+      socket.emit("renew-lock", { 
+        adId: "car-123", 
+        userId: socket.id 
       });
     };
   
@@ -105,7 +98,7 @@ function App() {
     // --- UI ---
     return (
       <div style={{ padding: '50px', fontFamily: 'system-ui, sans-serif' }}>
-        <h1>🚗 Ad Editor: 2024 Tesla Model 3</h1>
+        <h1>🚗 Ad Editor: 2025 Tesla Model 3</h1>
         
         <div style={{ 
           marginTop: '20px',
@@ -156,7 +149,24 @@ function App() {
             >
               Claim Edit Lock
             </button>
-  
+
+            {lockInfo.isLocked && lockInfo.lockedBy === socket.id && (
+              <button 
+                onClick={handleRenewLock}
+                style={{ 
+                  padding: '12px 24px', 
+                  backgroundColor: '#faad14', // Warning yellow
+                  color: 'black',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                ➕ Add +10s
+              </button>
+            )}
+
             <button 
               onClick={handleReleaseLock} 
               disabled={!lockInfo.isLocked || lockInfo.lockedBy !== myUserId}

@@ -21,7 +21,7 @@ const redis = new Redis({
   port: 6379
 });
 
-const LOCK_TTL = 5;
+const LOCK_TTL = 10;
 
 
 
@@ -46,6 +46,41 @@ io.on("connection", (socket) => {
       socket.emit("lock-error", { message: "Access Denied: Someone is already editing." });
     }
   });
+
+
+  socket.on("renew-lock", async ({ adId, userId }) => {
+    const lockKey = `lock:ad:${adId}`;
+    
+    //Get current owner AND current TTL
+    const [currentOwner, currentTTL] = await Promise.all([
+      redis.get(lockKey),
+      redis.ttl(lockKey)
+    ]);
+  
+    //Check: Do you still own this lock?
+    if (currentOwner === userId) {
+      // If TTL is -2 (expired) or -1 (no expiry), default to 0
+      const baseTime = currentTTL > 0 ? currentTTL : 0;
+      const newTTL = baseTime + LOCK_TTL;
+  
+      //Update Redis
+      await redis.expire(lockKey, newTTL);
+      
+      //Broadcast the new STACKED time
+      io.emit("lock-update", { 
+        adId, 
+        lockedBy: userId, 
+        isLocked: true, 
+        expiredIn: newTTL 
+      });
+      console.log(`🔄 ${userId} extended lock. New total: ${newTTL}s`);
+    } else {
+      // If the lock expired before they clicked, give them a NEW lock
+      // OR just tell the client the lock is gone.
+      io.emit("lock-update", { adId, lockedBy: null, isLocked: false });
+    }
+  });
+
 
   socket.on("release-lock", async ({ adId, userId }) => {
     const lockKey = `lock:ad:${adId}`;
