@@ -35,7 +35,8 @@ function App() {
       } else {
         //Ensures the UI stays Green
         setTimeLeft(0);
-        setIsExpired(false);
+        // setIsExpired(false);
+        setIsExpired((prev) => (prev === true ? true : false));
       }
     };
 
